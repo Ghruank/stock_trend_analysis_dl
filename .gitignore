@@ -1,0 +1,21 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Large generated data (rebuild with scripts/prepare_dataset.py)
+data/dataset.npz
+data/panel_features.parquet
+
+# Node
+website/node_modules/
+website/dist/
+
+# LaTeX build artifacts
+report/*.aux
+report/*.log
+report/*.out
+report/*.toc
+report/*.synctex.gz
+.DS_Store
