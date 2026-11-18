@@ -1,0 +1,37 @@
+=== ablation_xs:lstm:drop:momentum:s0  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001, 'monitor': 'corr'}
+--> ablation_xs:lstm:drop:momentum:s0 val_loss=-0.0145 test DA=49.92 R2oos=-2.960 MAPE=1.407
+=== ablation_xs:lstm:drop:momentum:s1  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001, 'monitor': 'corr'}
+--> ablation_xs:lstm:drop:momentum:s1 val_loss=-0.0180 test DA=49.64 R2oos=-4.374 MAPE=1.424
+=== ablation_xs:lstm:drop:candle:s0  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001, 'monitor': 'corr'}
+--> ablation_xs:lstm:drop:candle:s0 val_loss=-0.0209 test DA=49.95 R2oos=-2.342 MAPE=1.403
+=== ablation_xs:lstm:drop:candle:s1  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001, 'monitor': 'corr'}
+--> ablation_xs:lstm:drop:candle:s1 val_loss=-0.0161 test DA=49.66 R2oos=-2.469 MAPE=1.404
+=== ablation_xs:lstm:drop:volatility:s0  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001, 'monitor': 'corr'}
+--> ablation_xs:lstm:drop:volatility:s0 val_loss=-0.0268 test DA=50.12 R2oos=-0.517 MAPE=1.382
+=== ablation_xs:lstm:drop:volatility:s1  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001, 'monitor': 'corr'}
+--> ablation_xs:lstm:drop:volatility:s1 val_loss=-0.0232 test DA=49.84 R2oos=-2.447 MAPE=1.403
+=== ablation_xs:lstm:drop:oscillator:s0  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001, 'monitor': 'corr'}
+--> ablation_xs:lstm:drop:oscillator:s0 val_loss=-0.0082 test DA=50.04 R2oos=-0.416 MAPE=1.382
+=== ablation_xs:lstm:drop:oscillator:s1  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001, 'monitor': 'corr'}
+--> ablation_xs:lstm:drop:oscillator:s1 val_loss=-0.0189 test DA=49.49 R2oos=-3.099 MAPE=1.412
+=== ablation_xs:lstm:drop:trend:s0  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001, 'monitor': 'corr'}
+--> ablation_xs:lstm:drop:trend:s0 val_loss=-0.0199 test DA=49.87 R2oos=-8.273 MAPE=1.457
+=== ablation_xs:lstm:drop:trend:s1  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001, 'monitor': 'corr'}
+--> ablation_xs:lstm:drop:trend:s1 val_loss=-0.0216 test DA=49.75 R2oos=-0.190 MAPE=1.379
+=== ablation_xs:lstm:drop:volume_liquidity:s0  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001, 'monitor': 'corr'}
+--> ablation_xs:lstm:drop:volume_liquidity:s0 val_loss=-0.0122 test DA=49.94 R2oos=-0.365 MAPE=1.383
+=== ablation_xs:lstm:drop:volume_liquidity:s1  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001, 'monitor': 'corr'}
+--> ablation_xs:lstm:drop:volume_liquidity:s1 val_loss=-0.0143 test DA=50.13 R2oos=-0.478 MAPE=1.384
+=== ablation_xs:lstm:drop:market:s0  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001, 'monitor': 'corr'}
+--> ablation_xs:lstm:drop:market:s0 val_loss=-0.0156 test DA=50.10 R2oos=-0.088 MAPE=1.378
+=== ablation_xs:lstm:drop:market:s1  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001, 'monitor': 'corr'}
+--> ablation_xs:lstm:drop:market:s1 val_loss=-0.0216 test DA=49.52 R2oos=-0.542 MAPE=1.382
+=== ablation_xs:lstm:drop:cross_sectional:s0  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001, 'monitor': 'corr'}
+--> ablation_xs:lstm:drop:cross_sectional:s0 val_loss=-0.0252 test DA=50.06 R2oos=-0.625 MAPE=1.384
+=== ablation_xs:lstm:drop:cross_sectional:s1  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001, 'monitor': 'corr'}
+--> ablation_xs:lstm:drop:cross_sectional:s1 val_loss=-0.0152 test DA=49.75 R2oos=-0.762 MAPE=1.385
+=== ablation_xs:lstm:drop:calendar:s0  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001, 'monitor': 'corr'}
+--> ablation_xs:lstm:drop:calendar:s0 val_loss=-0.0176 test DA=49.60 R2oos=-2.266 MAPE=1.401
+=== ablation_xs:lstm:drop:calendar:s1  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001, 'monitor': 'corr'}
+--> ablation_xs:lstm:drop:calendar:s1 val_loss=-0.0129 test DA=50.00 R2oos=-2.727 MAPE=1.402
+ALL DONE in 29.3 min

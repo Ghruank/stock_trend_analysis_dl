@@ -1,0 +1,23 @@
+=== search:informer:0  cfg={'d_model': 64, 'e_layers': 2, 'dropout': 0.1, 'lr': 0.0003, 'factor': 5, 'n_heads': 4, 'd_ff': 256, 'attn': 'prob'}
+--> search:informer:0 val_loss=1.1849 val R2oos=-0.371 DA=51.58
+=== search:informer:1  cfg={'d_model': 64, 'e_layers': 2, 'dropout': 0.3, 'lr': 0.0001, 'factor': 5, 'n_heads': 4, 'd_ff': 256, 'attn': 'prob'}
+=== search:informer:2  cfg={'d_model': 64, 'e_layers': 3, 'dropout': 0.1, 'lr': 0.0003, 'factor': 5, 'n_heads': 4, 'd_ff': 256, 'attn': 'prob', 'patience': 3}
+--> search:informer:2 val_loss=1.1842 val R2oos=-0.170 DA=51.85
+=== search:informer:3  cfg={'d_model': 64, 'e_layers': 3, 'dropout': 0.3, 'lr': 0.0003, 'factor': 5, 'n_heads': 4, 'd_ff': 256, 'attn': 'prob', 'patience': 3}
+--> search:informer:3 val_loss=1.1837 val R2oos=+0.022 DA=51.99
+ALL DONE in 11.5 min
+=== final:informer:full:s0  cfg={'d_model': 64, 'e_layers': 3, 'dropout': 0.3, 'lr': 0.0003, 'factor': 5, 'n_heads': 4, 'd_ff': 256, 'attn': 'prob', 'patience': 3}
+--> final:informer:full:s0 val_loss=1.1839 test DA=50.76 R2oos=-0.001 MAPE=1.378
+=== final:informer:full:s1  cfg={'d_model': 64, 'e_layers': 3, 'dropout': 0.3, 'lr': 0.0003, 'factor': 5, 'n_heads': 4, 'd_ff': 256, 'attn': 'prob', 'patience': 3}
+--> final:informer:full:s1 val_loss=1.1834 test DA=50.54 R2oos=+0.013 MAPE=1.378
+=== final:informer:full:s2  cfg={'d_model': 64, 'e_layers': 3, 'dropout': 0.3, 'lr': 0.0003, 'factor': 5, 'n_heads': 4, 'd_ff': 256, 'attn': 'prob', 'patience': 3}
+--> final:informer:full:s2 val_loss=1.1851 test DA=49.49 R2oos=-0.230 MAPE=1.378
+=== final:informer:base:s0  cfg={'d_model': 64, 'e_layers': 3, 'dropout': 0.3, 'lr': 0.0003, 'factor': 5, 'n_heads': 4, 'd_ff': 256, 'attn': 'prob', 'patience': 3}
+--> final:informer:base:s0 val_loss=1.1830 test DA=50.87 R2oos=+0.081 MAPE=1.378
+=== final:informer:base:s1  cfg={'d_model': 64, 'e_layers': 3, 'dropout': 0.3, 'lr': 0.0003, 'factor': 5, 'n_heads': 4, 'd_ff': 256, 'attn': 'prob', 'patience': 3}
+--> final:informer:base:s1 val_loss=1.1837 test DA=50.90 R2oos=-0.007 MAPE=1.379
+=== final:informer:base:s2  cfg={'d_model': 64, 'e_layers': 3, 'dropout': 0.3, 'lr': 0.0003, 'factor': 5, 'n_heads': 4, 'd_ff': 256, 'attn': 'prob', 'patience': 3}
+--> final:informer:base:s2 val_loss=1.1841 test DA=50.64 R2oos=+0.024 MAPE=1.378
+=== final:informer:legacy:s0  cfg={'d_model': 64, 'e_layers': 3, 'dropout': 0.3, 'lr': 0.0003, 'factor': 5, 'n_heads': 4, 'd_ff': 256, 'attn': 'prob', 'patience': 3}
+--> final:informer:legacy:s0 val_loss=0.3374 test DA=49.95 R2oos=-106043.699 MAPE=15.335
+ALL DONE in 44.1 min

@@ -1,0 +1,13 @@
+=== xs:lstm:full:s0  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001, 'monitor': 'corr'}
+--> xs:lstm:full:s0 val_loss=-0.0307 test DA=50.44 R2oos=-0.572 MAPE=1.385
+=== xs:lstm:full:s1  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001, 'monitor': 'corr'}
+--> xs:lstm:full:s1 val_loss=-0.0193 test DA=49.66 R2oos=-0.357 MAPE=1.380
+=== xs:lstm:full:s2  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001, 'monitor': 'corr'}
+--> xs:lstm:full:s2 val_loss=-0.0189 test DA=50.29 R2oos=-0.992 MAPE=1.391
+=== xs:lstm:base:s0  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001, 'monitor': 'corr'}
+--> xs:lstm:base:s0 val_loss=-0.0198 test DA=49.76 R2oos=-1.227 MAPE=1.393
+=== xs:lstm:base:s1  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001, 'monitor': 'corr'}
+--> xs:lstm:base:s1 val_loss=-0.0169 test DA=49.70 R2oos=-0.746 MAPE=1.386
+=== xs:lstm:base:s2  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001, 'monitor': 'corr'}
+--> xs:lstm:base:s2 val_loss=-0.0125 test DA=49.58 R2oos=-0.326 MAPE=1.380
+ALL DONE in 11.6 min

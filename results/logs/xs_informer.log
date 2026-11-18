@@ -1,0 +1,7 @@
+=== xs:informer:full:s0  cfg={'d_model': 64, 'e_layers': 3, 'dropout': 0.3, 'lr': 0.0003, 'factor': 5, 'n_heads': 4, 'd_ff': 256, 'attn': 'prob', 'patience': 3, 'monitor': 'corr'}
+--> xs:informer:full:s0 val_loss=-0.0023 test DA=49.91 R2oos=-0.171 MAPE=1.378
+=== xs:informer:full:s1  cfg={'d_model': 64, 'e_layers': 3, 'dropout': 0.3, 'lr': 0.0003, 'factor': 5, 'n_heads': 4, 'd_ff': 256, 'attn': 'prob', 'patience': 3, 'monitor': 'corr'}
+--> xs:informer:full:s1 val_loss=-0.0108 test DA=49.61 R2oos=-0.095 MAPE=1.378
+=== xs:informer:full:s2  cfg={'d_model': 64, 'e_layers': 3, 'dropout': 0.3, 'lr': 0.0003, 'factor': 5, 'n_heads': 4, 'd_ff': 256, 'attn': 'prob', 'patience': 3, 'monitor': 'corr'}
+--> xs:informer:full:s2 val_loss=0.0045 test DA=49.07 R2oos=-0.507 MAPE=1.381
+ALL DONE in 5.8 min

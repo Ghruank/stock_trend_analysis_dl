@@ -1,0 +1,28 @@
+=== search:lstm:0  cfg={'hidden': 64, 'layers': 1, 'dropout': 0.1, 'lr': 0.001}
+--> search:lstm:0 val_loss=1.1842 val R2oos=-0.145 DA=51.14
+=== search:lstm:1  cfg={'hidden': 64, 'layers': 1, 'dropout': 0.3, 'lr': 0.0003}
+--> search:lstm:1 val_loss=1.1845 val R2oos=-0.216 DA=51.39
+=== search:lstm:2  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001}
+--> search:lstm:2 val_loss=1.1839 val R2oos=-0.055 DA=50.52
+=== search:lstm:3  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.3, 'lr': 0.001}
+--> search:lstm:3 val_loss=1.1840 val R2oos=-0.055 DA=50.39
+=== search:lstm:4  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.3, 'lr': 0.0003}
+--> search:lstm:4 val_loss=1.1840 val R2oos=-0.198 DA=51.57
+=== search:lstm:5  cfg={'hidden': 128, 'layers': 1, 'dropout': 0.1, 'lr': 0.0003}
+--> search:lstm:5 val_loss=1.1858 val R2oos=-0.231 DA=50.90
+ALL DONE in 5.4 min
+=== final:lstm:full:s0  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001}
+--> final:lstm:full:s0 val_loss=1.1839 test DA=50.01 R2oos=-0.314 MAPE=1.379
+=== final:lstm:full:s1  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001}
+--> final:lstm:full:s1 val_loss=1.1843 test DA=49.62 R2oos=-0.209 MAPE=1.379
+=== final:lstm:full:s2  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001}
+--> final:lstm:full:s2 val_loss=1.1849 test DA=50.25 R2oos=-0.105 MAPE=1.378
+=== final:lstm:base:s0  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001}
+--> final:lstm:base:s0 val_loss=1.1840 test DA=49.41 R2oos=-0.252 MAPE=1.379
+=== final:lstm:base:s1  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001}
+--> final:lstm:base:s1 val_loss=1.1841 test DA=49.87 R2oos=-0.017 MAPE=1.378
+=== final:lstm:base:s2  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001}
+--> final:lstm:base:s2 val_loss=1.1844 test DA=50.61 R2oos=-0.020 MAPE=1.379
+=== final:lstm:legacy:s0  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001}
+--> final:lstm:legacy:s0 val_loss=0.2993 test DA=49.40 R2oos=-27121.350 MAPE=13.916
+ALL DONE in 7.9 min

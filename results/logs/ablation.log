@@ -1,0 +1,7 @@
+=== ablation:lstm:drop:momentum:s0  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001}
+--> ablation:lstm:drop:momentum:s0 val_loss=1.1842 test DA=50.19 R2oos=-0.657 MAPE=1.384
+=== ablation:lstm:drop:momentum:s1  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001}
+--> ablation:lstm:drop:momentum:s1 val_loss=1.1846 test DA=49.31 R2oos=-0.324 MAPE=1.380
+=== ablation:lstm:drop:candle:s0  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001}
+--> ablation:lstm:drop:candle:s0 val_loss=1.1846 test DA=50.11 R2oos=-0.234 MAPE=1.379
+=== ablation:lstm:drop:candle:s1  cfg={'hidden': 64, 'layers': 2, 'dropout': 0.1, 'lr': 0.001}
