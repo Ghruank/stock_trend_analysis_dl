@@ -1,0 +1,26 @@
+\begin{table}[H]\centering\small
+\caption{Hyper-parameter search (validation 2022--2023). Selected configuration in bold.}\label{tab:search}
+\resizebox{\linewidth}{!}{\begin{tabular}{llrrr}
+\toprule
+Model & Configuration & Params & Epochs & Val.\ loss \\
+\midrule
+LSTM & {\scriptsize hidden=64, layers=2, dropout=0.1, lr=0.001} & 83k & 5 & \textbf{1.1839} \\
+LSTM & {\scriptsize hidden=64, layers=2, dropout=0.3, lr=0.001} & 83k & 5 & 1.1840 \\
+LSTM & {\scriptsize hidden=64, layers=2, dropout=0.3, lr=0.0003} & 83k & 5 & 1.1840 \\
+LSTM & {\scriptsize hidden=64, layers=1, dropout=0.1, lr=0.001} & 50k & 5 & 1.1842 \\
+LSTM & {\scriptsize hidden=64, layers=1, dropout=0.3, lr=0.0003} & 50k & 8 & 1.1845 \\
+LSTM & {\scriptsize hidden=128, layers=1, dropout=0.1, lr=0.0003} & 181k & 5 & 1.1858 \\
+\midrule
+Transformer & {\scriptsize d\_model=64, layers=2, dropout=0.3, lr=0.0001, n\_heads=4, d\_ff=256} & 116k & 11 & \textbf{1.1830} \\
+Transformer & {\scriptsize d\_model=64, layers=3, dropout=0.3, lr=0.0001, n\_heads=4, d\_ff=256} & 166k & 8 & 1.1830 \\
+Transformer & {\scriptsize d\_model=64, layers=3, dropout=0.3, lr=0.0003, n\_heads=4, d\_ff=256} & 166k & 5 & 1.1831 \\
+Transformer & {\scriptsize d\_model=64, layers=3, dropout=0.1, lr=0.0003, n\_heads=4, d\_ff=256} & 166k & 5 & 1.1833 \\
+Transformer & {\scriptsize d\_model=64, layers=2, dropout=0.1, lr=0.0003, n\_heads=4, d\_ff=256} & 116k & 5 & 1.1835 \\
+Transformer & {\scriptsize d\_model=128, layers=2, dropout=0.1, lr=0.0001, n\_heads=4, d\_ff=256} & 313k & 6 & 1.1840 \\
+\midrule
+Informer & {\scriptsize d\_model=64, e\_layers=3, dropout=0.3, lr=0.0003, factor=5, n\_heads=4, d\_ff=256, attn=prob} & 279k & 4 & \textbf{1.1837} \\
+Informer & {\scriptsize d\_model=64, e\_layers=3, dropout=0.1, lr=0.0003, factor=5, n\_heads=4, d\_ff=256, attn=prob} & 279k & 4 & 1.1842 \\
+Informer & {\scriptsize d\_model=64, e\_layers=2, dropout=0.1, lr=0.0003, factor=5, n\_heads=4, d\_ff=256, attn=prob} & 217k & 5 & 1.1849 \\
+\bottomrule
+\end{tabular}}
+\end{table}

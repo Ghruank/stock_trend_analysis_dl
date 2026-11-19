@@ -1,0 +1,16 @@
+\begin{table}[H]\centering\small
+\caption{Test set, \textbf{market-neutral target} (returns demeaned within region and day), checkpoint selected on validation correlation, 3-seed ensemble.}\label{tab:xs}
+\resizebox{\linewidth}{!}{\begin{tabular}{lrrrrrrrr}
+\toprule
+Model & DA\,\% & DA$_{xs}$\,\% & IC & $R^2_{oos}$\,\% & MAPE\,\% & SR$_{LS}$ & SR$_{dir,net}$ & DA$_{5d}$\,\% \\
+\midrule
+LSTM & \textbf{50.51} & 50.54 & 0.0174 & -0.194 & 1.381 & 1.31 & \textbf{0.77} & \textbf{50.88} \\
+Transformer & 49.46 & 50.04 & 0.0116 & \textbf{-0.047} & \textbf{1.377} & 0.70 & -0.96 & 49.14 \\
+Informer & 49.11 & 49.62 & -0.0054 & -0.190 & 1.378 & 0.06 & -1.42 & 48.74 \\
+\textit{3-model ensemble} & 49.31 & 50.19 & 0.0048 & -0.186 & 1.379 & 0.43 & -0.80 & 48.78 \\
+Ridge (linear) & 50.31 & \textbf{50.66} & \textbf{0.0301} & -0.464 & 1.381 & \textbf{1.85} & -1.12 & 48.96 \\
+Naive random walk & -- & -- & 0.0000 & 0.000 & 1.376 & 0.00 & 0.00 & -- \\
+\bottomrule
+\end{tabular}}
+\\[2pt]\parbox{0.97\linewidth}{\footnotesize DA = directional accuracy of the next-day return sign; DA$_{xs}$ = accuracy of beating vs.\ lagging the regional peer average; IC = mean daily rank correlation; $R^2_{oos}$ vs.\ zero-return forecast; MAPE on next-day close; SR$_{LS}$ = annualised Sharpe of the daily top-20\%/bottom-20\% long/short book (gross); SR$_{dir,net}$ = per-asset sign strategy after 10\,bp costs. Bold = best non-naive value.}
+\end{table}

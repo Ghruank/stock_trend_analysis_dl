@@ -1,0 +1,279 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern,microtype,amsmath,amssymb,booktabs,graphicx,float,xcolor,enumitem,multirow,caption,subcaption}
+\usepackage[hidelinks]{hyperref}
+\usepackage[numbers,sort&compress]{natbib}
+\captionsetup{font=small,labelfont=bf}
+\setlist{itemsep=2pt,topsep=4pt}
+\graphicspath{{figures/}}
+\input{generated/numbers.tex}
+\newcommand{\figw}[2]{\begin{figure}[H]\centering\includegraphics[width=\linewidth]{#1}\caption{#2}\label{fig:#1}\end{figure}}
+
+\title{\textbf{Stock Transformers}\\[4pt]\large LSTM vs.\ Transformer vs.\ Informer for multi-asset return forecasting:\\engineered features, market-neutral targets and calibrated forecast ranges}
+\author{Khush Agrawal \and Yashvi Mehta \and Ghruank Kothare\\[2pt]\small Deep Learning --- Final Project Report}
+\date{November 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We compare three deep sequence architectures (LSTM, Transformer with Time2Vec, and Informer) for stock-market prediction.
+We use a frozen daily snapshot of \NAssets{} assets up to November 2026:
+Indian large caps, high-volatility Indian small caps, US mega caps and commodity futures.
+We engineer \NFeat{} stationary features in ten families, and we evaluate all three architectures on a strictly chronological test period
+from January 2024 to November 2026, against a random-walk baseline and a linear baseline.
+With stationary targets, all three deep networks reach the random-walk price error (\NaiveMAPE\% MAPE), but forecasting the
+\emph{direction} of each asset stays close to a coin flip (DA $\approx$ 50\%).
+Our main contribution is to reframe the target. Instead of forecasting the market as a whole, we forecast which asset will beat its peers,
+using \emph{market-neutral} returns demeaned within each region and day, and we select checkpoints by validation correlation.
+This raises the LSTM's information coefficient from \LSTMRawIC{} to \LSTMXsIC{}, and the result is stable across seeds.
+The LSTM's daily long/short book reaches a gross Sharpe ratio of \LSTMXsLS{}. The Transformer improves less and less reliably,
+and the Informer does not improve at all. Ablations show that every engineered feature family contributes, and the 87 features double
+the LSTM's IC over 8 basic price/volume features. A linear ridge model on the same features is still the strongest ranker (IC \RidgeXsIC{}).
+Every forecast also carries a calibrated 5-day range: on the test period the real price falls inside the 80\% band \ConeEighty\% of the time
+and inside the 95\% band \ConeNinetyFive\% of the time.
+For daily stock prediction, the target and the features therefore matter more than the deep architecture.
+\end{abstract}
+
+\section{Introduction}
+Deep sequence models are often reported to ``predict'' stock prices with near-perfect accuracy.
+Most of these claims rest on one of three pitfalls:
+(i) evaluating price \emph{levels}, where a model that repeats today's price already scores $R^2\approx 1$;
+(ii) randomly shuffling overlapping windows before the train/test split, so test windows overlap with training windows; and
+(iii) reporting no naive baseline. A forecast is also rarely useful as a single number: a trader or risk manager needs to know
+the \emph{range} in which the price is likely to land.
+
+This report answers the question with a strict protocol: \emph{which of LSTM, Transformer and Informer is best for stock-market prediction, and
+what actually helps?} Our contributions are:
+\begin{enumerate}
+  \item \textbf{A leakage-free benchmark.} We use \NAssets{} assets across four volatility and asset-class groups, daily data 2005--2026,
+  chronological train/validation/test splits with purging, train-only scaling, a random-walk baseline and a linear (ridge) baseline.
+  \item \textbf{Feature engineering.} We extend 8 basic price/volume inputs (returns, OHLC ratios, volume, RSI, ROC and Bollinger width) to \NFeat{} features in ten families.
+  The new families include fractional differencing, range-based volatility estimators, liquidity measures, market and FX context, and cross-sectional ranks.
+  An ablation measures the value of each family.
+  \item \textbf{Faithful implementations.} We implement all three architectures in one framework: an LSTM with temporal attention,
+  a Transformer encoder with Time2Vec, and the Informer with ProbSparse attention, distilling and a generative decoder.
+  All three share the same asset embedding, data pipeline and training protocol.
+  \item \textbf{Target engineering (main innovation).} We use a market-neutral, volatility-normalised target and early stopping on validation
+  correlation. This turns near-zero skill into a consistent ranking signal.
+  \item \textbf{Calibrated forecast cones.} Each 5-day forecast path is wrapped in an 80\% and a 95\% range whose width is calibrated on the
+  validation period, and we verify on the test period that the real price lands inside the range as often as promised.
+  \item \textbf{Deployment.} A live 5-day forecast pipeline and an interactive website let users explore every result.
+\end{enumerate}
+
+\section{Related work}
+\textbf{LSTM.} Long short-term memory networks~\cite{hochreiter1997} are the standard recurrent baseline in financial forecasting~\cite{fischer2018}.
+\textbf{Transformer.} The Transformer~\cite{vaswani2017} replaces recurrence with self-attention. Time2Vec~\cite{kazemi2019} is a learnable
+periodic time representation that is often paired with it for time series.
+\textbf{Informer.} The Informer~\cite{zhou2021} makes long-sequence forecasting efficient. Its ProbSparse self-attention costs $O(L\log L)$,
+self-attention distilling halves the sequence length between layers, and a generative decoder emits the whole horizon in one forward pass.
+\textbf{Evaluation.} We report out-of-sample $R^2$ against the zero-return forecast, following Campbell and Thompson~\cite{campbell2008},
+and the information coefficient (IC) used in cross-sectional asset pricing~\cite{gu2020}.
+Fractional differencing and purged splits follow L\'opez de Prado~\cite{lopezdeprado2018}.
+
+\section{Data}
+\subsection{Universe and snapshot}
+We downloaded the data once with \texttt{scripts/download\_data.py} and froze it in \texttt{data/prices.csv}. The notebooks never fetch data at run time.
+The universe has four groups:
+\begin{itemize}
+  \item \textbf{25 Indian large caps}, e.g.\ RELIANCE, TCS, HDFCBANK and INFY.
+  \item \textbf{10 high-volatility Indian names}: YESBANK, SUZLON, IDEA, VEDL, TATAPOWER, ZEEL, BHEL, SAIL, IDFCFIRSTB and JINDALSTEL.
+  \item \textbf{8 US stocks}: AAPL, MSFT, NVDA, TSLA, JPM, KO, AMZN and XOM.
+  \item \textbf{6 commodity instruments}: gold, silver, crude oil, natural gas and copper futures, plus the GOLDBEES gold ETF.
+\end{itemize}
+We also store seven market series: NIFTY 50, India VIX, USD/INR, S\&P 500, WTI, VIX and the dollar index.
+\emph{Cleaning} drops single-day bad ticks and back-adjusts explicit corporate actions and futures rolls: the ADANIENT demerger, the 2026 VEDL demerger,
+a NATGAS contract roll and GOLDBEES unit splits. Real crashes, such as YESBANK in 2020, are kept.
+Each asset is assigned a \emph{volatility tier} (low, mid or high) from the terciles of its annualised volatility in the training period.
+
+\subsection{Splits}
+\begin{center}\begin{tabular}{lll}
+\toprule Split & Period & Valid windows\\\midrule
+Train & 2007-01 -- 2021-12 & \NTrain\\
+Validation & 2022-01 -- 2023-12 & \NVal\\
+Test & 2024-01 -- 2026-11 & \NTest\\\bottomrule
+\end{tabular}\end{center}
+Splits are chronological. At each boundary we remove $H=5$ rows so that no training target overlaps the next period (purging).
+All scalers are fitted on the training period only, per asset, and clipped at $\pm5\sigma$.
+
+\section{Feature engineering}
+\figw{fig_features.png}{The 87 features grouped by family. Grey marks the 8 basic price/volume features.}
+Every feature is stationary by construction: a return, a ratio, an oscillator bounded in $[0,100]$, a z-score or a rank. Table~\ref{tab:feat} lists the families.
+\begin{table}[H]\centering\small
+\caption{Feature families.}\label{tab:feat}
+\begin{tabular}{p{2.6cm}p{12.4cm}}\toprule
+Family & Features\\\midrule
+Base & 1-day log return, open/high/low relative to close, log volume z-score, ROC(5), RSI(5), Bollinger width(5)\\
+Momentum & log returns over 2, 3, 5, 10, 20, 60, 120 and 250 days\\
+Candle & overnight gap, intraday return, high--low range, close-location value, upper and lower shadows\\
+Volatility & realised volatility over 5, 20 and 60 days; Parkinson and Garman--Klass estimators; ATR; vol ratio; vol-of-vol; skewness; kurtosis; autocorrelation\\
+Oscillators & RSI(14), RSI(2), MACD and MACD histogram, stochastic \%K and \%D, CCI, MFI, ADX, DI difference\\
+Trend & price vs.\ SMA 10, 20, 50 and 200; Bollinger \%B and width; distance to the 52-week high and low; fractionally differenced log price ($d=0.4$)\\
+Volume/liquidity & volume ratio, $\Delta\log$ volume, OBV slope, Amihud illiquidity, turnover z-score\\
+Market & 60-day beta, residual returns, relative strength and correlation to the home index; home index returns, volatility and trend; VIX level and change; foreign-market and FX returns (lagged one day where those markets close later)\\
+Cross-sectional & daily within-region ranks of 1-, 5-, 20- and 60-day returns, volatility and volume; demeaned return\\
+Calendar & cyclical day-of-week and month encodings; day of month\\\bottomrule
+\end{tabular}\end{table}
+
+\section{Problem formulation}
+For asset $i$ at day $t$, the model sees the window $X_{i,t-95:t}\in\mathbb{R}^{96\times F}$ and predicts the next $H=5$ daily log returns.
+Raw future prices are a non-stationary target: test prices drift outside the training range. We therefore use the \emph{volatility-normalised} return
+\[
+  y_{i,t+h}=\operatorname{clip}\!\left(\frac{r_{i,t+h}}{\hat\sigma_{i,t}},\,-5,\,5\right),\qquad h=1,\dots,5,
+\]
+where $\hat\sigma_{i,t}$ is the EWMA(20) standard deviation of daily returns. With this scaling, a 1\% move in KO and a 1\% move in SUZLON
+are no longer treated as equally surprising.
+
+\paragraph{Market-neutral target (innovation).}
+On any given day, most of the variance in asset returns is a common market move, and that move is almost unpredictable.
+We therefore subtract the cross-sectional mean within region $g$ (India or US/commodities) and day $t$:
+\[
+  y^{xs}_{i,t+h}=y_{i,t+h}-\frac{1}{|\mathcal{G}_{g,t}|}\sum_{j\in\mathcal{G}_{g,t}}y_{j,t+h}.
+\]
+The network now learns \emph{which assets will outperform their peers}. This is the quantity a market-neutral portfolio trades,
+and it removes the hardest-to-predict component. Because the target's scale no longer matters, we also stop training on the
+\emph{validation Pearson correlation} instead of the validation MSE.
+
+\section{Models}
+\figw{fig_architectures.png}{The three architectures. All three share the input projection, the learned asset embedding and the 5-step output head.}
+\paragraph{LSTM.} A linear input projection plus an asset embedding feeds a stacked LSTM. The last hidden state is concatenated with an
+attention-pooled summary of all hidden states, and an MLP outputs the five returns.
+\paragraph{Transformer.} A pre-LayerNorm encoder adds a learnable Time2Vec encoding~\cite{kazemi2019} and an asset embedding to the projected
+inputs. Its output is the last token concatenated with the mean-pooled sequence.
+\paragraph{Informer.} This is a faithful re-implementation of Zhou et al.~\cite{zhou2021}. The encoder uses ProbSparse self-attention, which selects
+the top $u=c\ln L$ queries by the max--mean sparsity measure, and self-attention distilling (Conv1d, ELU, max-pool) between layers.
+The decoder receives a 48-step start token plus 5 zero placeholders, and uses masked ProbSparse self-attention followed by full cross-attention.
+It produces all five steps in one generative forward pass. Calendar marks (month, day, weekday) enter through fixed sinusoidal temporal embeddings.
+
+\paragraph{Training protocol.} All models use the same protocol:
+\begin{itemize}
+  \item a pooled model over all \NAssets{} assets;
+  \item AdamW with 1 epoch of linear warm-up followed by cosine decay;
+  \item batch size 512, gradient clipping at 1.0 and mixed precision;
+  \item early stopping on validation loss (patience 3--4);
+  \item a random hyper-parameter search on the 2022--23 validation set (Table~\ref{tab:search});
+  \item 3 seeds per final configuration, with the seed-averaged prediction used as the ensemble.
+\end{itemize}
+All training ran on a free Google Colab T4 GPU. Data was prepared locally and uploaded as a single frozen \texttt{dataset.npz}.
+
+\section{Evaluation metrics}
+\begin{itemize}
+  \item \textbf{Price metrics} (RMSE, MAE, MAPE on the next-day close). They are always reported next to the naive forecast $\hat P_{t+1}=P_t$, because on price levels even ``tomorrow = today'' looks excellent.
+  \item \textbf{$R^2_{oos}$} $=1-\sum(r-\hat r)^2/\sum r^2$. A positive value means the model beats the random walk~\cite{campbell2008}.
+  \item \textbf{Directional accuracy} (DA): the share of days on which the sign of the next-day return is correct. DA$_{xs}$ is the same for the sign relative to the peer mean.
+  \item \textbf{Information coefficient} (IC): the mean daily Spearman correlation between forecasts and realised returns within a region. IC\_IR is its annualised $t$-ratio.
+  \item \textbf{Cone coverage}: the share of test windows and horizon steps in which the realised cumulative return lies inside the predicted 80\% (95\%) band. A calibrated forecast scores 80\% (95\%).
+  \item \textbf{Economic value}: the annualised Sharpe ratio of (a) a daily long/short book that buys the top 20\% and sells the bottom 20\% of forecasts, and (b) a per-asset sign strategy, gross and after 10\,bp per trade.
+\end{itemize}
+
+\section{Results}
+\subsection{Raw return target: all three architectures sit at the random walk}
+\input{generated/tab_main.tex}
+\figw{fig_headline.png}{Headline test metrics with the raw (volatility-normalised) return target and full features.}
+With a stationary target, every architecture matches the naive price error. However, $R^2_{oos}$ stays slightly negative
+and the next-day directional accuracy stays within about $\pm0.5$ percentage points of 50\%. Even the linear model (ridge) is not better at
+the \emph{absolute} direction. Ridge does reach an IC of \RidgeIC{}, meaning it ranks assets a little better than chance.
+This motivates the market-neutral target.
+
+\subsection{Market-neutral target: a consistent ranking signal}
+\input{generated/tab_xs.tex}
+\figw{fig_innovation.png}{Effect of the market-neutral target. Faded bars use the raw target, solid bars the market-neutral target; the dashed line is ridge with the market-neutral target.}
+Removing the common market move makes the problem learnable for the recurrent model. The LSTM's IC rises from \LSTMRawIC{} to \LSTMXsIC{}.
+Its three seeds give $0.0152\pm0.0019$, the most stable result in the study (Table~\ref{tab:fs}). Its gross long/short Sharpe ratio is \LSTMXsLS{}, and
+its beat-the-peers accuracy is \LSTMXsDAxs\%. The Transformer reaches IC \TransformerXsIC{}, but its seed variance is five times larger.
+The Informer stays negative (\InformerXsIC{}).
+An equal-weight ensemble of all three architectures (IC \ComboIC{}) is \emph{worse} than the LSTM alone: averaging only helps when every member
+has skill, and the Informer adds noise. The ridge model on the same market-neutral target remains the best ranker (IC \RidgeXsIC{},
+Sharpe \RidgeXsLS{}). Most of the signal is therefore linear in the engineered features.
+\figw{fig_quintiles.png}{Mean next-day return of each daily forecast quintile on the test set. A monotone staircase indicates ranking skill.}
+\figw{fig_equity.png}{Cumulative paper returns of the forecast-driven strategies on the test set, before transaction costs.}
+
+\subsection{Feature engineering: what each family contributes}
+\input{generated/tab_fs.tex}
+\figw{fig_ridge_ablation.png}{Linear probe ablation on the market-neutral target. Each bar is the change in test IC when one family is removed. ``Only base'' keeps just the 8 basic price/volume features.}
+\figw{fig_ablation.png}{Deep-model ablation with 2 seeds per family. Left: change in validation loss; right: change in test IC.}
+Both ablations agree that the new features carry the signal. For the LSTM with the market-neutral target, removing \emph{any} of the nine
+engineered families lowers the test IC, by between 0.004 (volume/liquidity) and 0.014 (candle, calendar and momentum) (Figure~\ref{fig:fig_ablation.png}).
+With only the 8 base features, the LSTM reaches IC $0.0075\pm0.0056$, half of the $0.0152\pm0.0019$ it reaches with all 87 (Table~\ref{tab:fs}).
+The linear probe confirms the picture. The 8 basic features alone give the lowest IC of all variants, and the largest losses come from removing
+\emph{market context}, \emph{volatility}, \emph{cross-sectional ranks} and \emph{oscillators}.
+
+\subsection{Volatility tiers and asset classes}
+\figw{fig_breakdown.png}{Directional accuracy by volatility tier and asset class.}
+\figw{fig_examples.png}{Next-day close forecasts versus actual prices for three assets in the last 90 test days. At the price level, every model tracks the series because the forecast is anchored to today's close.}
+
+\subsection{Forecast cones: predicted range versus what happened}
+\figw{fig_cone.png}{Top: a new 5-day LSTM forecast cone every week for TCS (dashed: forecast path; dark band: 80\%; light band: 95\%), with the actual price drawn over it. Bottom: single forecasts for two low-volatility assets and one high-volatility asset; red is what actually happened. The YESBANK example is one of the 5\% of cases that fall outside the 95\% band.}
+A point forecast of tomorrow's price is almost useless on its own, because the expected move is tiny compared with the noise.
+We therefore attach a range to every forecast. For horizon $k$ the band is
+\[
+  \Big[\,P_t\,e^{\hat R_{t,k}+q^{lo}_k\hat\sigma_t},\; P_t\,e^{\hat R_{t,k}+q^{hi}_k\hat\sigma_t}\Big],
+\]
+where $\hat R_{t,k}$ is the model's predicted cumulative log return and $q^{lo}_k,q^{hi}_k$ are quantiles (10/90\% and 2.5/97.5\%) of the realised
+volatility-scaled cumulative returns in the 2022--23 \emph{validation} period, centred on their median. Nothing from the test period is used.
+On the test period the real price falls inside the LSTM's 80\% band \ConeEighty\% of the time and inside its 95\% band \ConeNinetyFive\% of the time,
+so the ranges are well calibrated at every horizon. The typical 80\% range over 5 days is $\pm$\ConeHalfWidth\%. The cone widens with the asset's current volatility:
+it is narrow for KO and gold and wide for YESBANK.
+
+\subsection{Training dynamics and search}
+\input{generated/tab_search.tex}
+\figw{fig_training.png}{Validation loss per epoch for every search configuration; the selected configuration is highlighted.}
+All models reach their best validation score within a few epochs and then overfit. This is the expected behaviour on a low signal-to-noise target,
+and it is why early stopping and strong weight decay matter more than model capacity.
+
+\section{Discussion: which architecture is best?}
+\begin{itemize}
+  \item \textbf{For price-level accuracy, none of them.} All three tie with the random walk, and any claim otherwise in daily data should be treated with suspicion.
+  \item \textbf{For ranking (market-neutral) signals, the LSTM wins} on every ranking metric: IC, beat-the-peers accuracy and long/short Sharpe.
+  It is also the most stable across seeds and the cheapest to train, at about 4\,s per epoch against 17\,s for the Transformer and 33\,s for the Informer on a T4.
+  The Transformer learns a weaker and seed-dependent signal. The Informer's ProbSparse attention and distilling
+  are designed for sequences of hundreds or thousands of steps. With a 96-day window and a 5-day horizon these mechanisms bring no benefit, and the Informer
+  fails to learn a ranking at all.
+  \item \textbf{What mattered more than the architecture} was the target definition (stationary and market-neutral), the information in the features
+  (market context and cross-sectional ranks), and an honest evaluation protocol.
+  \item \textbf{Ensembling} only helps between models that each have skill. The 3-model average is weaker than the LSTM alone.
+  \item \textbf{A linear model is a strong baseline.} Ridge on the same 87 features ranks better than every deep network. At a daily horizon, the
+  signal is mostly linear, and a deep model has to beat this bar before its extra cost is justified.
+\end{itemize}
+
+\section{Real-life application and live demo}
+\figw{fig_live.png}{Live forecasts for the next five trading days, produced from the latest data (\LiveDate) by all three checkpoints.}
+The intended use is a \emph{daily ranking signal}. Each evening, \texttt{live\_predict.py --refresh} downloads the newest prices,
+rebuilds the 87 features with the frozen training scalers, and scores every asset with the three trained networks. A portfolio manager
+can use the ranking to tilt a market-neutral long/short book (long the top quintile, short the bottom quintile within each market),
+or a risk desk can use it to flag assets with unusually large predicted 5-day moves. The interactive website shows the forecasts together with
+every test-period statistic. The website includes a prediction explorer for every asset, interactive forecast cones and a backtest view.
+Before such a signal is used with real money, it would need lower-turnover portfolio construction: daily rebalancing at 10\,bp
+consumes most of the gross edge.
+
+\section{Limitations}
+\begin{itemize}
+  \item The compute budget was a single free Colab T4 GPU. Each search sampled 6 configurations, and the Informer search was cut to 3.
+  \item With 3 seeds per model, the LSTM's lead over the Transformer is consistent (it is better on every seed-mean ranking metric) but not formally significant, because the Transformer's seed variance is large. The Informer's deficit is clear.
+  \item The universe of 49 assets limits how strong a cross-sectional signal can be. A larger universe (e.g.\ NIFTY 500) would increase breadth.
+  \item The data is end-of-day only. We do not model order-book or news information.
+\end{itemize}
+
+\section{Conclusion}
+Under a strict chronological protocol, no architecture predicts tomorrow's \emph{market direction} better than a coin flip. However,
+deep sequence models can learn which assets will \emph{outperform their peers} once the target is made market-neutral and the inputs include
+rich engineered context. On that task the LSTM is clearly the best of the three architectures, ahead of the Transformer, while the Informer fails.
+A linear model on the same features remains competitive.
+For daily stock prediction, our results show that the target definition, the features and the evaluation protocol matter more than the choice of architecture.
+
+\paragraph{Reproducibility.} All results can be regenerated with the repository's scripts:
+\texttt{download\_data.py} $\rightarrow$ \texttt{prepare\_dataset.py} $\rightarrow$ \texttt{run\_experiments.py}
+$\rightarrow$ \texttt{export\_web\_data.py} $\rightarrow$ \texttt{make\_figures.py}. Each architecture also has a clean notebook in its own folder.
+
+\begin{thebibliography}{9}\small
+\bibitem{hochreiter1997} S.~Hochreiter and J.~Schmidhuber. Long short-term memory. \emph{Neural Computation}, 9(8):1735--1780, 1997.
+\bibitem{fischer2018} T.~Fischer and C.~Krauss. Deep learning with long short-term memory networks for financial market predictions. \emph{European Journal of Operational Research}, 270(2):654--669, 2018.
+\bibitem{vaswani2017} A.~Vaswani et al. Attention is all you need. In \emph{NeurIPS}, 2017.
+\bibitem{kazemi2019} S.~M.~Kazemi et al. Time2Vec: Learning a vector representation of time. \emph{arXiv:1907.05321}, 2019.
+\bibitem{zhou2021} H.~Zhou et al. Informer: Beyond efficient Transformer for long sequence time-series forecasting. In \emph{AAAI}, 2021.
+\bibitem{campbell2008} J.~Y.~Campbell and S.~B.~Thompson. Predicting excess stock returns out of sample. \emph{Review of Financial Studies}, 21(4):1509--1531, 2008.
+\bibitem{gu2020} S.~Gu, B.~Kelly and D.~Xiu. Empirical asset pricing via machine learning. \emph{Review of Financial Studies}, 33(5):2223--2273, 2020.
+\bibitem{lopezdeprado2018} M.~L\'opez de Prado. \emph{Advances in Financial Machine Learning}. Wiley, 2018.
+\end{thebibliography}
+\end{document}
