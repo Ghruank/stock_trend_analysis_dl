@@ -1,0 +1,70 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[margin=1.7cm]{geometry}
+\usepackage{booktabs,tabularx,enumitem,xcolor,titlesec,amsmath}
+\usepackage[hidelinks]{hyperref}
+\setlist{nosep,leftmargin=1.3em}
+\titlespacing*{\section}{0pt}{8pt}{3pt}
+\titleformat{\section}{\large\bfseries\color{blue!50!black}}{}{0pt}{}
+\renewcommand{\arraystretch}{1.15}
+\pagestyle{empty}
+
+\begin{document}
+\begin{center}
+{\Large\bfseries Individual Contribution: Transformer Model}\\[2pt]
+\textbf{Soham} \quad$\cdot$\quad Stock Transformers: LSTM vs Transformer vs Informer\\[1pt]
+\small 49 assets (India, US, commodities) $\cdot$ daily data 2005--2026 $\cdot$ predict next 5 daily returns $\cdot$ test Jan 2024 -- Nov 2026
+\end{center}
+
+\section{What I implemented}
+\begin{itemize}
+  \item \textbf{\texttt{TransformerForecaster}} (\texttt{Transformer/transformer\_model.py}): Linear(87 features $\to d$) + Time2Vec + asset embedding $\to$ $N$ encoder blocks $\to$ LayerNorm $\to$ [last token $\|$ mean over time] $\to$ MLP $\to$ 5 outputs.
+  \item \textbf{Time2Vec layer} (Kazemi et al., 2019): $t2v(t)_0=\omega_0t+\varphi_0$, \ $t2v(t)_i=\sin(\omega_it+\varphi_i)$ for $i=1..k$, with learnable $\omega,\varphi$. Replaces the fixed sinusoidal positional encoding of Vaswani et al.\ (2017).
+  \item \textbf{Pre-LayerNorm encoder blocks}: LN $\to$ multi-head self-attention $\to$ residual $\to$ LN $\to$ FFN $\to$ residual. Trains stably with warm-up and without learning-rate tricks.
+  \item \textbf{Dual pooling head}: concatenation of the last token (most recent state) and the time-mean (whole-window summary).
+  \item \textbf{Hyper-parameter search}: $d_{model}\in\{64,128\}$, layers $\in\{2,3\}$, dropout $\in\{0.1,0.3\}$, lr $\in\{3\cdot10^{-4},10^{-4}\}$, 4 heads, $d_{ff}=256$. Selected: $d_{model}$ 64, 2 layers, dropout 0.3, lr $10^{-4}$ (116k parameters), best validation loss of all models (1.1830).
+  \item \textbf{3 seeds + seed ensemble} on raw target, market-neutral target, and 8 vs 87 features; about 17\,s per epoch on a T4; notebook \texttt{Transformer.ipynb}.
+\end{itemize}
+
+\section{Innovation / what is new}
+\begin{itemize}
+  \item \textbf{Learnable time encoding (Time2Vec) instead of fixed sinusoids}: the model learns its own periodicities (weekly, monthly cycles) from data rather than using fixed frequencies designed for text.
+  \item \textbf{Multi-asset Transformer}: shared asset embedding lets one model be trained on all 49 assets together.
+  \item \textbf{Market-neutral target} (team innovation) applied to the Transformer: predict return minus regional peer average, with early stopping on validation correlation. Transformer IC improved from 0.0026 to \textbf{0.0116} ($\approx4.5\times$) and long/short Sharpe from 0.56 to 0.70 (ensemble).
+  \item \textbf{Price-level vs return-level evaluation}: we show that on price levels any model that copies today's price scores $R^2\approx0.99$, so we evaluate on returns, with chronological splits and a 5-day purge gap so overlapping windows never cross from train into test.
+  \item \textbf{Measured comparison of attention vs recurrence} on short (96-day) noisy windows, with seed variance reported, not a single best run.
+\end{itemize}
+
+\section{Results (test set, Jan 2024 -- Nov 2026)}
+\begin{center}\footnotesize\setlength\tabcolsep{4pt}
+\begin{tabular}{lrrrrrr}
+\toprule
+Transformer setting & DA\,\% & Peer-DA\,\% & IC & MAPE\,\% & L/S Sharpe & $R^2_{oos}$\,\%\\\midrule
+Raw target, 87 features (ensemble) & 50.20 & 50.16 & 0.0026 & 1.378 & 0.56 & $-0.111$\\
+\textbf{Market-neutral, 87 features (ensemble)} & 49.46 & 50.04 & \textbf{0.0116} & \textbf{1.377} & \textbf{0.70} & \textbf{$-$0.047}\\
+Market-neutral, 87 feat.\ (seed mean $\pm$ s.d.) & 49.58 & 50.04 & 0.0107\,$\pm$\,0.0097 & 1.377 & 0.96 & --\\
+Base 8 features (seed mean) & 50.50 & 50.01 & $-0.0078$ & 1.378 & $-0.07$ & --\\
+Naive random walk & -- & -- & 0.0000 & 1.376 & 0.00 & 0.000\\\bottomrule
+\end{tabular}
+\end{center}
+\begin{itemize}
+  \item \textbf{Second-best architecture}: positive ranking signal (IC 0.0116), and the \textbf{best $R^2_{oos}$ and lowest MAPE} of all non-naive models on the market-neutral target.
+  \item Its seed s.d.\ (0.0097) is $\approx5\times$ the LSTM's, so the signal depends on the random seed. Validation correlation peaks within a few epochs, then the model overfits.
+  \item With only the 8 base features the IC is negative ($-0.0078$): the engineered features are what make attention useful here.
+\end{itemize}
+
+\section{Metric guide: what each number means}
+\begin{center}\footnotesize
+\begin{tabularx}{\linewidth}{@{}p{2.1cm}Xp{3.0cm}X@{}}
+\toprule
+\textbf{Metric} & \textbf{Meaning} & \textbf{Ideal / good value} & \textbf{Extremes}\\\midrule
+DA (directional accuracy) & \% of days the predicted sign of tomorrow's return is correct. & 50\% = coin flip; 52--55\% is already strong for daily stocks. & 100\%: perfect (in practice means data leakage). 0\%: always wrong (flip it and it is perfect).\\
+Peer-DA & \% of times we correctly say whether an asset beats or lags its regional peer average. & Same as DA: $>$50\%. & 100\%: perfect relative calls; 0\%: perfectly inverted.\\
+IC (information coefficient) & Spearman rank correlation, each day, between predicted and actual returns across assets; averaged over days. & 0 = no skill; 0.02--0.05 is considered good in daily finance. & $+1$: perfect ranking every day. $-1$: perfectly reversed ranking.\\
+$R^2_{oos}$ & $1-\mathrm{SSE}_{\text{model}}/\mathrm{SSE}_{\text{zero forecast}}$ on returns. & $>0$ means better than predicting 0; even $+0.5$\% is meaningful. & 100\%: perfect. Negative: worse than always predicting ``no move''.\\
+MAPE & Mean absolute \% error of next-day closing price. & Lower is better; compare to random walk (1.376\%). & 0\%: perfect; no upper bound. Price MAPE always looks small because tomorrow $\approx$ today.\\
+L/S Sharpe & Annualised return/risk of buying top 20\% and shorting bottom 20\% each day (gross). & 0 = no edge; $>$1 good; $>$2 excellent. & Very high ($>$3): suspicious. Negative: the ranking loses money.\\
+Seed s.d. & Standard deviation of a metric across 3 random seeds. & Small relative to the mean (stable, reproducible). & 0: fully reproducible. Larger than the mean: result may be luck.\\
+Validation loss & MSE on the volatility-normalised target (2022--23). & Lower is better; $\approx$1.18 here, close to the target's own variance. & 0: perfect fit. Equal to target variance: model predicts nothing beyond the mean.\\\bottomrule
+\end{tabularx}
+\end{center}
+\end{document}

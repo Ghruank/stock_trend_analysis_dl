@@ -1,0 +1,69 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[margin=1.7cm]{geometry}
+\usepackage{booktabs,tabularx,enumitem,xcolor,titlesec,amsmath}
+\usepackage[hidelinks]{hyperref}
+\setlist{nosep,leftmargin=1.3em}
+\titlespacing*{\section}{0pt}{8pt}{3pt}
+\titleformat{\section}{\large\bfseries\color{blue!50!black}}{}{0pt}{}
+\renewcommand{\arraystretch}{1.15}
+\pagestyle{empty}
+
+\begin{document}
+\begin{center}
+{\Large\bfseries Individual Contribution: LSTM Model}\\[2pt]
+\textbf{Ghruank Kothare} \quad$\cdot$\quad Stock Transformers: LSTM vs Transformer vs Informer\\[1pt]
+\small 49 assets (India, US, commodities) $\cdot$ daily data 2005--2026 $\cdot$ predict next 5 daily returns $\cdot$ test Jan 2024 -- Nov 2026
+\end{center}
+
+\section{What I implemented}
+\begin{itemize}
+  \item \textbf{\texttt{LSTMForecaster}} (\texttt{LSTM/lstm\_model.py}): input projection (87 features $\to$ hidden $h$) $\to$ stacked LSTM $\to$ MLP head with 5 outputs (next 5 volatility-normalised daily returns).
+  \item \textbf{Asset embedding} (49 assets $\to$ 16-dim vector) concatenated to every time step, so \emph{one} model is trained on all 49 assets (pooled training) but still learns asset-specific behaviour.
+  \item \textbf{Temporal attention pooling}: $\alpha_t=\mathrm{softmax}(w^\top\tanh(Wh_t))$, a weighted sum over all 96 hidden states, concatenated with the last hidden state. The head can use any day in the 96-day window, not only the final one.
+  \item \textbf{Hyper-parameter search} on 2022--23 validation: hidden $\in\{64,128\}$, layers $\in\{1,2\}$, dropout $\in\{0.1,0.3\}$, lr $\in\{10^{-3},3\cdot10^{-4}\}$. Selected: hidden 64, 2 layers, dropout 0.1, lr $10^{-3}$ (83k parameters).
+  \item \textbf{Training}: AdamW (weight decay $10^{-4}$), 1-epoch warm-up + cosine decay, batch 512, fp16 mixed precision, early stopping. About \textbf{4\,s per epoch} on a free Colab T4 (8$\times$ faster than the Informer).
+  \item \textbf{3 seeds + seed ensemble} for every setting, so results are reported as mean $\pm$ s.d., not a lucky single run.
+  \item \textbf{Calibrated forecast cones}: 80\% and 95\% price ranges around each 5-day LSTM forecast, calibrated on 2022--23 only.
+  \item \textbf{Feature-family ablation} run on the LSTM (it was the most stable model), 2 seeds per removed family.
+  \item Clean, self-contained notebook \texttt{LSTM.ipynb} (data $\to$ model $\to$ training $\to$ evaluation $\to$ plots).
+\end{itemize}
+
+\section{Innovation / what is new}
+\begin{itemize}
+  \item \textbf{Market-neutral target (main project innovation)}: instead of raw returns, the LSTM predicts each asset's return \emph{minus its regional peer average on that day} (``which asset beats its peers?''). This removes the common market move, which is essentially unpredictable. Combined with \textbf{early stopping on validation correlation} (not loss), the LSTM's IC went from 0.0025 to \textbf{0.0174} ($\approx 7\times$).
+  \item \textbf{Volatility-normalised target}: $y=\mathrm{clip}(r_{t+h}/\hat\sigma_t,-5,5)$ with EWMA(20) volatility, so a 1\% move in KO and in SUZLON are not treated as equally surprising.
+  \item \textbf{Attention on top of recurrence + asset embedding}: a vanilla LSTM only sees the last state; ours can attend to any day and is shared across 49 assets.
+  \item \textbf{Forecast cones instead of a single number}: quantiles of validation-period errors, scaled by current volatility. Verified on the unseen test period: real price inside the 80\% band \textbf{79.8\%} of the time and inside the 95\% band \textbf{94.8\%} of the time (near perfect calibration). Typical 80\% range over 5 days: $\pm$4.6\%.
+  \item \textbf{Honest protocol}: chronological splits with 5-day purging, train-only scaling, compared with random-walk and ridge baselines (avoids the usual ``$R^2=0.99$ on prices'' trap).
+\end{itemize}
+
+\section{Results (test set, Jan 2024 -- Nov 2026)}
+\begin{center}\footnotesize\setlength\tabcolsep{4pt}
+\begin{tabular}{lrrrrrr}
+\toprule
+LSTM setting & DA\,\% & Peer-DA\,\% & IC & MAPE\,\% & L/S Sharpe & Dir.\ Sharpe net\\\midrule
+Raw target, 87 features (ensemble) & 49.92 & 49.85 & 0.0025 & 1.378 & 0.29 & $-0.21$\\
+\textbf{Market-neutral, 87 features (ensemble)} & \textbf{50.51} & \textbf{50.54} & \textbf{0.0174} & 1.381 & \textbf{1.31} & \textbf{0.77}\\
+Market-neutral, 8 base feat.\ (seed mean) & 49.68 & 50.30 & 0.0075 & 1.387 & 0.61 & --\\
+Market-neutral, 87 feat.\ (seed mean $\pm$ s.d.) & 50.13 & 50.38 & 0.0152\,$\pm$\,0.0019 & 1.385 & 1.03 & --\\
+Naive random walk & -- & -- & 0.0000 & 1.376 & 0.00 & 0.00\\\bottomrule
+\end{tabular}
+\end{center}
+\textbf{Takeaway:} the LSTM is the \textbf{best of the three architectures} on IC, peer accuracy and long/short Sharpe, the \textbf{most stable across seeds} (s.d.\ 0.002 vs 0.010 for the Transformer), the only model with a positive Sharpe after costs, and the cheapest to train. Short 96-day noisy windows favour the recurrent inductive bias over attention.
+
+\section{Metric guide: what each number means}
+\begin{center}\footnotesize
+\begin{tabularx}{\linewidth}{@{}p{2.1cm}Xp{3.0cm}X@{}}
+\toprule
+\textbf{Metric} & \textbf{Meaning} & \textbf{Ideal / good value} & \textbf{Extremes}\\\midrule
+DA (directional accuracy) & \% of days the predicted sign of tomorrow's return is correct. & 50\% = coin flip; 52--55\% is already strong for daily stocks. & 100\%: perfect (in practice means data leakage). 0\%: always wrong (flip it and it is perfect).\\
+Peer-DA & \% of times we correctly say whether an asset beats or lags its regional peer average. & Same as DA: $>$50\%. & 100\%: perfect relative calls; 0\%: perfectly inverted.\\
+IC (information coefficient) & Spearman rank correlation, each day, between predicted and actual returns across assets; averaged over days. & 0 = no skill; 0.02--0.05 is considered good in daily finance. & $+1$: perfect ranking every day. $-1$: perfectly reversed ranking.\\
+$R^2_{oos}$ & $1-\mathrm{SSE}_{\text{model}}/\mathrm{SSE}_{\text{zero forecast}}$ on returns. & $>0$ means better than predicting 0; even $+0.5$\% is meaningful. & 100\%: perfect. Negative: worse than always predicting ``no move''.\\
+MAPE & Mean absolute \% error of next-day closing price. & Lower is better; compare to random walk (1.376\%). & 0\%: perfect; no upper bound. Price MAPE always looks small because tomorrow $\approx$ today.\\
+L/S Sharpe & Annualised return/risk of buying top 20\% and shorting bottom 20\% each day (gross). & 0 = no edge; $>$1 good; $>$2 excellent. & Very high ($>$3): suspicious. Negative: the ranking loses money.\\
+Dir.\ Sharpe net & Sharpe of trading each asset on its predicted sign, after 10\,bp costs. & $>$0 means profitable after costs. & Large negative: costs or wrong signs dominate.\\
+Cone coverage & \% of real prices inside the predicted 80\%/95\% range. & Equal to nominal: 80\% and 95\%. & Above nominal: bands too wide (over-cautious). Below: over-confident.\\\bottomrule
+\end{tabularx}
+\end{center}
+\end{document}

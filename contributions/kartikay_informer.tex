@@ -1,0 +1,72 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[margin=1.7cm]{geometry}
+\usepackage{booktabs,tabularx,enumitem,xcolor,titlesec,amsmath}
+\usepackage[hidelinks]{hyperref}
+\setlist{nosep,leftmargin=1.3em}
+\titlespacing*{\section}{0pt}{8pt}{3pt}
+\titleformat{\section}{\large\bfseries\color{blue!50!black}}{}{0pt}{}
+\renewcommand{\arraystretch}{1.15}
+\pagestyle{empty}
+
+\begin{document}
+\begin{center}
+{\Large\bfseries Individual Contribution: Informer Model}\\[2pt]
+\textbf{Kartikay} \quad$\cdot$\quad Stock Transformers: LSTM vs Transformer vs Informer\\[1pt]
+\small 49 assets (India, US, commodities) $\cdot$ daily data 2005--2026 $\cdot$ predict next 5 daily returns $\cdot$ test Jan 2024 -- Nov 2026
+\end{center}
+
+\section{What I implemented}
+\begin{itemize}
+  \item \textbf{Faithful re-implementation of Informer} (Zhou et al., AAAI 2021 Best Paper), written from the paper inside the same framework as the other two models (\texttt{Informer/informer\_model.py}).
+  \item \textbf{ProbSparse self-attention}: for each head, only the top $u=c\cdot\ln L$ ``active'' queries are scored, ranked by the max--mean sparsity measure \[M(q,K)=\max_j\tfrac{q k_j^\top}{\sqrt d}-\tfrac1L\textstyle\sum_j\tfrac{qk_j^\top}{\sqrt d};\] lazy queries receive the mean of $V$. Cost drops from $O(L^2)$ to $O(L\log L)$.
+  \item \textbf{Self-attention distilling}: Conv1d $\to$ BatchNorm $\to$ ELU $\to$ MaxPool(/2) after each encoder layer, halving the sequence ($96\to48\to24$).
+  \item \textbf{Generative decoder}: input = last 48 encoder steps (start token) $\|$ 5 zero placeholders with their future calendar marks; masked ProbSparse self-attention $\to$ full cross-attention. All 5 horizon steps come out in \emph{one} forward pass (no autoregressive error build-up).
+  \item \textbf{Embeddings}: token Conv1d + positional + temporal (month, day, weekday) + shared asset embedding.
+  \item \textbf{Hyper-parameter search}: $d_{model}\in\{64,128\}$, encoder layers $\in\{2,3\}$, dropout $\in\{0.1,0.3\}$, lr $\in\{3\cdot10^{-4},10^{-4}\}$, factor $c=5$, 4 heads. Selected: $d_{model}$ 64, 3 layers, dropout 0.3 (279k parameters).
+  \item \textbf{3 seeds + seed ensemble} on raw target, market-neutral target, and 8 vs 87 features; clean notebook \texttt{Informer.ipynb}.
+\end{itemize}
+
+\section{Innovation / what is new}
+\begin{itemize}
+  \item \textbf{Adapted Informer to stock returns}: the original paper forecasts raw values (electricity, weather). We changed the output to \textbf{volatility-normalised returns}, because raw prices drift outside the training range and cannot be compared across assets.
+  \item \textbf{Multi-asset Informer}: added an asset embedding so one Informer is trained jointly on 49 assets (the paper trains one model per dataset).
+  \item \textbf{Market-neutral target} (team innovation) tested on Informer: predict return minus regional peer average, with early stopping on validation correlation.
+  \item \textbf{Critical, evidence-based finding}: we tested \emph{whether a long-sequence model helps at a short horizon}. It does not: at a 96-day window and 5-day horizon the $O(L\log L)$ saving is irrelevant, and the random query sampling adds variance. This is a negative result, but it is a measured one, not an assumption.
+  \item Same leakage-free protocol for all models (chronological split, 5-day purge, train-only scaling, random-walk + ridge baselines).
+\end{itemize}
+
+\section{Results (test set, Jan 2024 -- Nov 2026)}
+\begin{center}\footnotesize\setlength\tabcolsep{4pt}
+\begin{tabular}{lrrrrrr}
+\toprule
+Informer setting & DA\,\% & Peer-DA\,\% & IC & MAPE\,\% & L/S Sharpe & $R^2_{oos}$\,\%\\\midrule
+Raw target, 87 features (ensemble) & 50.23 & 49.88 & $-0.0083$ & 1.377 & $-0.66$ & $-0.003$\\
+Market-neutral, 87 features (ensemble) & 49.11 & 49.62 & $-0.0054$ & 1.378 & 0.06 & $-0.190$\\
+Base 8 features (seed mean) & 50.80 & 50.17 & $-0.0015$ & 1.378 & 0.06 & --\\
+LSTM, market-neutral (for comparison) & 50.51 & 50.54 & 0.0174 & 1.381 & 1.31 & $-0.194$\\
+Naive random walk & -- & -- & 0.0000 & 1.376 & 0.00 & 0.000\\\bottomrule
+\end{tabular}
+\end{center}
+\begin{itemize}
+  \item Best validation loss 1.1837 (the other models: 1.183--1.184), so it fits as well as the others, and ties the random walk on price error.
+  \item It is the \textbf{only architecture that learns no ranking signal} (IC $-0.006\pm0.001$) and is the \textbf{slowest}: about 33\,s per epoch on a T4 vs 4\,s for LSTM.
+  \item Adding Informer to a 3-model ensemble made the ensemble \emph{worse} than LSTM alone (IC 0.0048): averaging only helps when every member has skill.
+  \item \textbf{Lesson:} Informer is designed for inputs of hundreds--thousands of steps; for daily stock data the target and features matter more than the architecture.
+\end{itemize}
+
+\section{Metric guide: what each number means}
+\begin{center}\footnotesize
+\begin{tabularx}{\linewidth}{@{}p{2.1cm}Xp{3.0cm}X@{}}
+\toprule
+\textbf{Metric} & \textbf{Meaning} & \textbf{Ideal / good value} & \textbf{Extremes}\\\midrule
+DA (directional accuracy) & \% of days the predicted sign of tomorrow's return is correct. & 50\% = coin flip; 52--55\% is already strong for daily stocks. & 100\%: perfect (in practice means data leakage). 0\%: always wrong (flip it and it is perfect).\\
+Peer-DA & \% of times we correctly say whether an asset beats or lags its regional peer average. & Same as DA: $>$50\%. & 100\%: perfect relative calls; 0\%: perfectly inverted.\\
+IC (information coefficient) & Spearman rank correlation, each day, between predicted and actual returns across assets; averaged over days. & 0 = no skill; 0.02--0.05 is considered good in daily finance. & $+1$: perfect ranking every day. $-1$: perfectly reversed ranking.\\
+$R^2_{oos}$ & $1-\mathrm{SSE}_{\text{model}}/\mathrm{SSE}_{\text{zero forecast}}$ on returns. & $>0$ means better than predicting 0; even $+0.5$\% is meaningful. & 100\%: perfect. Negative: worse than always predicting ``no move''.\\
+MAPE & Mean absolute \% error of next-day closing price. & Lower is better; compare to random walk (1.376\%). & 0\%: perfect; no upper bound. Price MAPE always looks small because tomorrow $\approx$ today.\\
+L/S Sharpe & Annualised return/risk of buying top 20\% and shorting bottom 20\% each day (gross). & 0 = no edge; $>$1 good; $>$2 excellent. & Very high ($>$3): suspicious. Negative: the ranking loses money.\\
+Validation loss & MSE on the volatility-normalised target (2022--23). & Lower is better; $\approx$1.18 here, close to the target's own variance. & 0: perfect fit. Equal to target variance: model predicts nothing beyond the mean.\\
+Epoch time & Training cost per epoch on a T4 GPU. & Lower is better for the same accuracy. & --\\\bottomrule
+\end{tabularx}
+\end{center}
+\end{document}

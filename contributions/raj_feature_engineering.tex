@@ -1,0 +1,81 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[margin=1.7cm]{geometry}
+\usepackage{booktabs,tabularx,enumitem,xcolor,titlesec,amsmath}
+\usepackage[hidelinks]{hyperref}
+\setlist{nosep,leftmargin=1.3em}
+\titlespacing*{\section}{0pt}{8pt}{3pt}
+\titleformat{\section}{\large\bfseries\color{blue!50!black}}{}{0pt}{}
+\renewcommand{\arraystretch}{1.15}
+\pagestyle{empty}
+
+\begin{document}
+\begin{center}
+{\Large\bfseries Individual Contribution: Feature Engineering \& Data}\\[2pt]
+\textbf{Raj} \quad$\cdot$\quad Stock Transformers: LSTM vs Transformer vs Informer\\[1pt]
+\small 49 assets (India, US, commodities) $\cdot$ daily data 2005--2026 $\cdot$ predict next 5 daily returns $\cdot$ test Jan 2024 -- Nov 2026
+\end{center}
+
+\section{What I implemented}
+\begin{itemize}
+  \item \textbf{Extended 8 basic inputs to 87 stationary features in 10 families} (\texttt{src/stockdl/features.py}). Every feature is a return, ratio, bounded oscillator, z-score or rank, so it stays in the same range in 2007 and in 2026.
+  \begin{itemize}
+    \item \emph{Base (8)}: 1-day log return, open/high/low vs close, volume z-score, ROC(5), RSI(5), Bollinger width.
+    \item \emph{Momentum}: log returns over 2, 3, 5, 10, 20, 60, 120, 250 days.
+    \item \emph{Candle}: overnight gap, intraday return, high--low range, close-location value, upper/lower shadows.
+    \item \emph{Volatility}: realised vol (5/20/60), \textbf{Parkinson} and \textbf{Garman--Klass} range estimators, ATR, vol ratio, vol-of-vol, skew, kurtosis, autocorrelation.
+    \item \emph{Oscillators}: RSI(14), RSI(2), MACD + histogram, stochastic \%K/\%D, CCI, MFI, ADX, DI difference.
+    \item \emph{Trend}: price vs SMA 10/20/50/200, Bollinger \%B, distance to 52-week high/low, \textbf{fractionally differenced log price} ($d=0.4$).
+    \item \emph{Volume/liquidity}: volume ratio, $\Delta\log$ volume, OBV slope, \textbf{Amihud illiquidity}, turnover z-score.
+    \item \emph{Market context}: 60-day beta, residual return, relative strength and correlation to home index, index returns/vol/trend, VIX level and change, foreign-market and FX returns.
+    \item \emph{Cross-sectional}: daily within-region ranks of 1/5/20/60-day returns, volatility and volume; demeaned return.
+    \item \emph{Calendar}: cyclical (sin/cos) day-of-week and month, day of month.
+  \end{itemize}
+  \item \textbf{Data pipeline}: frozen 2005--2026 snapshot of 49 assets + 7 market series (NIFTY 50, India VIX, USD/INR, S\&P 500, WTI, VIX, dollar index).
+  \item \textbf{Data cleaning}: automatic removal of single-day bad ticks (a $>$35\% jump immediately reversed) and back-adjustment of corporate actions and futures rolls (ADANIENT and VEDL demergers, NATGAS roll, GOLDBEES split). Real crashes (YESBANK 2020) are kept.
+  \item \textbf{Leakage-free splits}: train 2007--21 (163,802 windows), val 2022--23 (23,990), test 2024--26 (34,700); 5-day purge at each boundary; per-asset scalers fit on train only, clipped at $\pm5\sigma$.
+  \item \textbf{Ablation studies}: ridge (linear-probe) ablation and LSTM ablation (2 seeds) removing one family at a time; ridge linear baseline.
+\end{itemize}
+
+\section{Innovation / what is new}
+\begin{itemize}
+  \item \textbf{Fractional differencing} (L\'opez de Prado): makes price stationary while keeping long memory, unlike plain returns which throw it away.
+  \item \textbf{Range-based volatility estimators} (Parkinson, Garman--Klass): use high/low/open/close, up to 5--7$\times$ more efficient than close-to-close volatility.
+  \item \textbf{Cross-sectional rank features + cross-market context}: each asset is described \emph{relative to its peers that day}, and US/FX markets that close later are \textbf{lagged by one day} to avoid look-ahead leakage between time zones.
+  \item \textbf{No-leakage guarantee by design}: every feature uses only data up to day $t$, scaling is fitted on training data only, splits are purged.
+  \item \textbf{Systematic proof of value}: instead of assuming features help, each family was removed and the drop in IC measured.
+\end{itemize}
+
+\section{Results}
+\begin{center}\footnotesize\setlength\tabcolsep{4pt}
+\begin{tabular}{lllrrr}
+\toprule
+Model & Target & Inputs & IC & Peer-DA\,\% & L/S Sharpe\\\midrule
+LSTM (3 seeds) & market-neutral & Base 8 & 0.0075\,$\pm$\,0.0056 & 50.30 & 0.61\\
+LSTM (3 seeds) & market-neutral & \textbf{Full 87} & \textbf{0.0152\,$\pm$\,0.0019} & \textbf{50.38} & \textbf{1.03}\\
+Transformer (3 seeds) & raw & Base 8 & $-0.0078$\,$\pm$\,0.0012 & 50.01 & $-0.07$\\
+Transformer (3 seeds) & raw & Full 87 & 0.0001\,$\pm$\,0.0064 & 50.05 & 0.15\\
+Ridge linear model & market-neutral & Full 87 & \textbf{0.0301} & 50.66 & 1.85\\\bottomrule
+\end{tabular}
+\end{center}
+\begin{itemize}
+  \item 87 features \textbf{double the LSTM's IC} (0.0075 $\to$ 0.0152) and cut its seed s.d.\ by $3\times$ (more stable).
+  \item \textbf{Removing \emph{any} of the 9 new families lowers the LSTM's test IC}: by 0.004 (volume/liquidity) up to 0.014 (candle, calendar, momentum).
+  \item Linear-probe ablation: biggest losses come from removing \textbf{market context, volatility, cross-sectional ranks and oscillators}; base-only is the worst variant.
+  \item A ridge model on these features is the strongest ranker overall (IC 0.030): \textbf{features and target matter more than the architecture}.
+\end{itemize}
+
+\section{Metric guide: what each number means}
+\begin{center}\footnotesize
+\begin{tabularx}{\linewidth}{@{}p{2.1cm}Xp{3.0cm}X@{}}
+\toprule
+\textbf{Metric} & \textbf{Meaning} & \textbf{Ideal / good value} & \textbf{Extremes}\\\midrule
+IC (information coefficient) & Spearman rank correlation, each day, between predicted and actual returns across assets; averaged over days. & 0 = no skill; 0.02--0.05 is considered good in daily finance. & $+1$: perfect ranking every day. $-1$: perfectly reversed ranking.\\
+$\Delta$IC (ablation) & Change in test IC when one feature family is removed. & Negative = the family was useful (bigger drop = more important). & 0: family adds nothing. Positive: family was hurting (noise).\\
+Peer-DA & \% of times we correctly say whether an asset beats or lags its regional peer average. & 50\% = coin flip; $>$50\% is skill. & 100\%: perfect relative calls; 0\%: perfectly inverted.\\
+DA (directional accuracy) & \% of days the predicted sign of tomorrow's return is correct. & 52--55\% is already strong for daily stocks. & 100\%: almost surely data leakage. 0\%: always wrong.\\
+L/S Sharpe & Annualised return/risk of buying top 20\% and shorting bottom 20\% each day (gross). & 0 = no edge; $>$1 good; $>$2 excellent. & Very high ($>$3): suspicious. Negative: loses money.\\
+Seed s.d. & Spread of a metric across 3 random seeds. & Small relative to the mean. & 0: fully reproducible. $>$ mean: result may be luck.\\
+Stationarity & Feature has stable mean/variance over time. & Every feature stationary (returns, ratios, ranks, z-scores). & Non-stationary (raw price): test values fall outside the training range.\\\bottomrule
+\end{tabularx}
+\end{center}
+\end{document}
